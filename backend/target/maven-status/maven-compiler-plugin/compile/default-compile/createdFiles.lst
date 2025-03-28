@@ -1,0 +1,15 @@
+com\sos\BackendApplication.class
+com\sos\repository\ContentRepository.class
+com\sos\server\WebSocketTunnelHandler.class
+com\sos\config\CorsConfig.class
+com\sos\entity\CategoryDocument.class
+com\sos\repository\CategoryRepository.class
+com\sos\server\ServerMain.class
+com\sos\server\ServerMain$1.class
+com\sos\controller\ClientAbortExceptionHandler.class
+com\sos\controller\ContentController.class
+com\sos\server\WebSocketTunnelHandler$1.class
+com\sos\controller\AdminController.class
+com\sos\controller\AdminControllerPage.class
+com\sos\entity\ContentDocument.class
+com\sos\server\WebSocketTunnelHandler$1$1.class
