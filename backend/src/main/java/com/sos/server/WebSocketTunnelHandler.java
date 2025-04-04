@@ -22,19 +22,50 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 public class WebSocketTunnelHandler extends SimpleChannelInboundHandler<BinaryWebSocketFrame> {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketTunnelHandler.class);
     private static final Map<String, Channel> tcpChannelMap = new ConcurrentHashMap<>();
+    private ChannelFuture tcpServerFuture; // 用于存储TCP服务器的ChannelFuture
+    private final static int LOCAL_PORT = 27016; // 定义端口常量
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
         logger.info("WebSocket通道建立：{}", ctx.channel().remoteAddress());
-        // 启动TCP服务器
+        // 关闭之前的TCP服务器并启动新的TCP服务器
+        stopTcpServer();
         startTcpServer(ctx);
     }
 
-    private void startTcpServer(ChannelHandlerContext ctx) {
+    private synchronized void stopTcpServer() {
+        if (tcpServerFuture != null) {
+            logger.info("关闭之前的TCP服务器...");
+            Channel serverChannel = tcpServerFuture.channel();
+            
+            // 改进1：使用监听器代替阻塞等待
+            ChannelFuture closeFuture = serverChannel.close();
+            closeFuture.addListener(future -> {
+                if (future.isSuccess()) {
+                    logger.info("TCP服务器端口已释放");
+                    // 改进3：关闭所有子通道
+                    tcpChannelMap.values().forEach(ch -> ch.close());
+                    tcpChannelMap.clear();
+                }
+            });
+            
+            // 改进2：设置合理超时时间（单位：毫秒）
+            if (!closeFuture.awaitUninterruptibly(5000)) {
+                logger.error("TCP服务器关闭超时，可能存在资源泄漏");
+                serverChannel.unsafe().closeForcibly();
+            }
+            
+            tcpServerFuture = null;
+        }
+    }
+
+    private synchronized void startTcpServer(ChannelHandlerContext ctx) {
         EventLoopGroup group = ctx.channel().eventLoop();
-        new ServerBootstrap()
+        tcpServerFuture = new ServerBootstrap()
             .group(group)
             .channel(NioServerSocketChannel.class)
+            .option(ChannelOption.SO_REUSEADDR, true)
+            .childOption(ChannelOption.SO_REUSEADDR, true) // 增加子通道复用设置
             .childHandler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 protected void initChannel(SocketChannel ch) {
@@ -72,11 +103,10 @@ public class WebSocketTunnelHandler extends SimpleChannelInboundHandler<BinaryWe
                     });
                 }
             })
-            .bind(27016)
+            .bind(LOCAL_PORT)
             .addListener((ChannelFutureListener) future -> {
                 if (future.isSuccess()) {
-                    // tcpChannel = future.channel();
-                    logger.info("TCP服务器启动成功，端口：8000");
+                    logger.info("TCP服务器启动成功，端口：{}", LOCAL_PORT);
                 } else {
                     logger.error("TCP服务器启动失败：{}", future.cause().getMessage());
                     ctx.close();
@@ -130,7 +160,7 @@ public class WebSocketTunnelHandler extends SimpleChannelInboundHandler<BinaryWe
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        
+        stopTcpServer();
     }
 
     @Override
@@ -140,5 +170,6 @@ public class WebSocketTunnelHandler extends SimpleChannelInboundHandler<BinaryWe
         } else {
             logger.error("发生未预期异常：{}", cause.toString(), cause); // 增加完整异常堆栈
         }
+        stopTcpServer();
     }
 }

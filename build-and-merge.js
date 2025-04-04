@@ -22,7 +22,7 @@ function buildFrontend() {
       cwd: frontendPath,
       env: {
         ...process.env,
-        VITE_API_BASE_URL: 'http://localhost:8080',//'http://1.94.62.193:8080', // 设置后端服务的 URL //http://1.94.62.193:8080
+        VITE_API_BASE_URL: 'http://1.94.62.193:8080',//'http://1.94.62.193:8080', // 设置后端服务的 URL //http://1.94.62.193:8080
       },
     }, (error, stdout, stderr) => {
       if (error) {

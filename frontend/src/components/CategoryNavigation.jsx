@@ -11,7 +11,6 @@ export default function CategoryNavigation({ categories }) {
     acc[curr.categoryKey] = curr.subcategories;
     return acc;
   }, {});
-
   const subCategories = formattedData[category] || [];
 
   // 调试信息
